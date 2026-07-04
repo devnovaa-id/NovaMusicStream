@@ -5,6 +5,51 @@ from yt_dlp import YoutubeDL
 
 logger = logging.getLogger("Downloader")
 
+BASE_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-us,en;q=0.5',
+    'Sec-Fetch-Mode': 'navigate',
+}
+
+# Cek apakah ada file cookies.txt di direktori root
+COOKIE_FILE = None
+if os.path.exists("cookies.txt"):
+    COOKIE_FILE = "cookies.txt"
+elif os.path.exists("cookies.txt"):
+    COOKIE_FILE = "cookies.txt"
+
+BASE_YDl_OPTS = {
+    'format': 'bestaudio/best',
+    'outtmpl': 'downloads/%(id)s.%(ext)s',
+    'geo_bypass': True,
+    'nocheckcertificate': True,
+    'quiet': True,
+    'no_warnings': True,
+    'prefer_ffmpeg': True,
+    'postprocessors': [
+        {
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '128',
+        }
+    ],
+    'http_headers': BASE_HEADERS,
+    'user_agent': BASE_HEADERS['User-Agent'],
+    'cookies_from_browser': ('chrome',),  # Aktifkan cookies dari browser (chrome)
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android', 'web'],
+            'skip': ['hls', 'dash'],
+            'player_skip': ['configs', 'webpage'],
+        }
+    }
+}
+
+# Jika ada file cookie, tambahkan ke opsi
+if COOKIE_FILE:
+    BASE_YDl_OPTS['cookiefile'] = COOKIE_FILE
+
 
 def audio_dl_progress(url: str, progress_callback=None):
     try:
@@ -16,22 +61,7 @@ def audio_dl_progress(url: str, progress_callback=None):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': 'downloads/%(id)s.%(ext)s',
-        'geo_bypass': True,
-        'nocheckcertificate': True,
-        'quiet': True,
-        'no_warnings': True,
-        'prefer_ffmpeg': True,
-        'postprocessors': [
-            {
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '128',
-            }
-        ],
-    }
+    ydl_opts = BASE_YDl_OPTS.copy()
 
     if progress_callback:
         def hook(d):
@@ -101,7 +131,20 @@ def search_youtube(query: str):
         'quiet': True,
         'no_warnings': True,
         'extract_flat': True,
+        'http_headers': BASE_HEADERS,
+        'user_agent': BASE_HEADERS['User-Agent'],
+        'cookies_from_browser': ('chrome',),
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'skip': ['hls', 'dash'],
+                'player_skip': ['configs', 'webpage'],
+            }
+        }
     }
+
+    if COOKIE_FILE:
+        ydl_opts_search['cookiefile'] = COOKIE_FILE
 
     try:
         with YoutubeDL(ydl_opts_search) as ydl_search:
@@ -139,7 +182,20 @@ def get_playlist_videos(url: str, limit: int = 10):
         'no_warnings': True,
         'extract_flat': True,
         'ignoreerrors': True,
+        'http_headers': BASE_HEADERS,
+        'user_agent': BASE_HEADERS['User-Agent'],
+        'cookies_from_browser': ('chrome',),
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'skip': ['hls', 'dash'],
+                'player_skip': ['configs', 'webpage'],
+            }
+        }
     }
+
+    if COOKIE_FILE:
+        ydl_opts['cookiefile'] = COOKIE_FILE
 
     try:
         with YoutubeDL(ydl_opts) as ydl:
