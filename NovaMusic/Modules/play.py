@@ -26,6 +26,7 @@ from NovaMusic.Helpers.downloaders import (
     search_youtube,
     get_playlist_videos,
     is_playlist_url,
+    get_stream_url,
 )
 from NovaMusic.Helpers.gets import get_file_name, get_url
 from NovaMusic.Helpers.inline import buttons
@@ -35,19 +36,15 @@ from NovaMusic.Helpers.thumbnails import gen_qthumb, gen_thumb
 logger = logging.getLogger("PlayModule")
 
 
-@app.on_message(
-    filters.command(["play", "vplay", "p"])
-    & filters.group
-    & ~filters.forwarded
-    & ~filters.via_bot
-)
-async def play(_, message: Message):
+async def process_play(message: Message, is_video: bool = False):
+    """Fungsi utama play/vplay dengan flag is_video"""
     fallen = await message.reply_text("» ᴘʀᴏᴄᴇssɪɴɢ, ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...")
     try:
         await message.delete()
     except:
         pass
 
+    # Cek assistant (sama seperti play.py)
     try:
         get = await app.get_chat_member(message.chat.id, ASS_ID)
         if get.status == ChatMemberStatus.BANNED:
@@ -155,6 +152,7 @@ async def play(_, message: Message):
                 pass
 
     if audio:
+        # Jika reply audio, hanya audio (is_video=False)
         if round(audio.duration / 60) > DURATION_LIMIT:
             return await fallen.edit_text(
                 f"» ᴅᴜʀᴀsɪ ᴛʀᴀᴋ ᴍᴇʟᴇʙɪʜɪ {DURATION_LIMIT} ᴍᴇɴɪᴛ."
@@ -168,6 +166,7 @@ async def play(_, message: Message):
             else f"downloads/{file_name}"
         )
         videoid = "audio_reply"
+        # is_video=False karena ini reply audio
 
     elif url:
         try:
@@ -195,14 +194,20 @@ async def play(_, message: Message):
                         continue
 
                     try:
-                        file_path = audio_dl(video_url)
+                        if is_video:
+                            # Video: stream langsung tanpa download
+                            stream_url = get_stream_url(video_url, is_video=True)
+                            file_path = stream_url if stream_url else video_url
+                        else:
+                            # Audio: download dulu
+                            file_path = audio_dl(video_url)
                         if not file_path:
                             continue
 
                         if chat_active and not first_video:
                             await put(
                                 message.chat.id, title, duration_min, videoid, file_path, ruser,
-                                message.from_user.id
+                                message.from_user.id, is_video
                             )
                             added_count += 1
                         else:
@@ -238,33 +243,59 @@ async def play(_, message: Message):
                     await fallen.delete()
                 return
 
-            # BUKAN PLAYLIST -> single video
-            ydl_opts = {'quiet': True, 'no_warnings': True}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if not info:
-                    raise Exception("Gagal mengambil info video")
-                title = info.get('title', 'Unknown')
-                duration_sec = info.get('duration', 0)
-                duration_min = round(duration_sec / 60)
-                videoid = info.get('id', '')
-                if not videoid:
-                    videoid = 'url_track'
+            # Single video/audio
+            if is_video:
+                # Video: stream langsung tanpa download
+                ydl_opts = {'quiet': True, 'no_warnings': True}
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if not info:
+                        raise Exception("Gagal mengambil info video")
+                    title = info.get('title', 'Unknown')
+                    duration_sec = info.get('duration', 0)
+                    duration_min = round(duration_sec / 60)
+                    videoid = info.get('id', '')
+                    if not videoid:
+                        videoid = 'url_track'
 
-            if duration_min > DURATION_LIMIT:
-                return await fallen.edit_text(
-                    f"» ᴅᴜʀᴀsɪ ᴛʀᴀᴋ ᴍᴇʟᴇʙɪʜɪ {DURATION_LIMIT} ᴍᴇɴɪᴛ."
+                if duration_min > DURATION_LIMIT:
+                    return await fallen.edit_text(
+                        f"» ᴅᴜʀᴀsɪ ᴛʀᴀᴋ ᴍᴇʟᴇʙɪʜɪ {DURATION_LIMIT} ᴍᴇɴɪᴛ."
+                    )
+
+                await fallen.edit_text("🎬 **Streaming video...**")
+                stream_url = get_stream_url(url, is_video=True)
+                if not stream_url:
+                    raise Exception("Gagal mendapatkan URL streaming video")
+                file_path = stream_url
+            else:
+                # Audio: download
+                ydl_opts = {'quiet': True, 'no_warnings': True}
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if not info:
+                        raise Exception("Gagal mengambil info video")
+                    title = info.get('title', 'Unknown')
+                    duration_sec = info.get('duration', 0)
+                    duration_min = round(duration_sec / 60)
+                    videoid = info.get('id', '')
+                    if not videoid:
+                        videoid = 'url_track'
+
+                if duration_min > DURATION_LIMIT:
+                    return await fallen.edit_text(
+                        f"» ᴅᴜʀᴀsɪ ᴛʀᴀᴋ ᴍᴇʟᴇʙɪʜɪ {DURATION_LIMIT} ᴍᴇɴɪᴛ."
+                    )
+
+                await fallen.edit_text("⬇️ **ᴍᴇɴɢᴜɴᴅᴜʜ ᴀᴜᴅɪᴏ...**")
+                file_path = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    audio_dl_progress,
+                    url,
+                    update_progress
                 )
-
-            await fallen.edit_text("⬇️ **ᴍᴇɴɢᴜɴᴅᴜʜ ᴀᴜᴅɪᴏ...**")
-            file_path = await asyncio.get_running_loop().run_in_executor(
-                None,
-                audio_dl_progress,
-                url,
-                update_progress
-            )
-            if not file_path:
-                raise Exception("Gagal mendownload audio")
+                if not file_path:
+                    raise Exception("Gagal mendownload audio")
 
         except Exception as e:
             LOGGER.error(f"URL processing error: {e}")
@@ -273,6 +304,7 @@ async def play(_, message: Message):
             )
 
     else:
+        # Pencarian
         if len(message.command) < 2:
             return await fallen.edit_text("» ᴍᴀsᴜᴋᴋᴀɴ ᴊᴜᴅᴜʟ ᴀᴛᴀᴜ URL ʟᴀɢᴜ.")
 
@@ -299,15 +331,22 @@ async def play(_, message: Message):
             )
 
         try:
-            await fallen.edit_text("⬇️ **ᴍᴇɴɢᴜɴᴅᴜʜ ᴀᴜᴅɪᴏ...**")
-            file_path = await asyncio.get_running_loop().run_in_executor(
-                None,
-                audio_dl_progress,
-                url,
-                update_progress
-            )
-            if not file_path:
-                raise Exception("Gagal mendownload audio")
+            if is_video:
+                await fallen.edit_text("🎬 **Streaming video...**")
+                stream_url = get_stream_url(url, is_video=True)
+                if not stream_url:
+                    raise Exception("Gagal mendapatkan URL streaming video")
+                file_path = stream_url
+            else:
+                await fallen.edit_text("⬇️ **ᴍᴇɴɢᴜɴᴅᴜʜ ᴀᴜᴅɪᴏ...**")
+                file_path = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    audio_dl_progress,
+                    url,
+                    update_progress
+                )
+                if not file_path:
+                    raise Exception("Gagal mendownload audio")
         except Exception as e:
             LOGGER.error(f"Download error: {e}")
             return await fallen.edit_text(
@@ -320,7 +359,7 @@ async def play(_, message: Message):
         await add_active_chat(message.chat.id)
         await put(
             message.chat.id, title, duration_min, videoid, file_path, ruser,
-            message.from_user.id
+            message.from_user.id, is_video
         )
         position = len(novadb.get(message.chat.id, []))
         qimg = await gen_qthumb(videoid, message.from_user.id)
@@ -365,3 +404,25 @@ async def play(_, message: Message):
         await fallen.delete()
     except:
         pass
+
+
+# Handler untuk /play (audio)
+@app.on_message(
+    filters.command(["play", "p"])
+    & filters.group
+    & ~filters.forwarded
+    & ~filters.via_bot
+)
+async def play(_, message: Message):
+    await process_play(message, is_video=False)
+
+
+# Handler untuk /vplay (video)
+@app.on_message(
+    filters.command(["vplay", "vp"])
+    & filters.group
+    & ~filters.forwarded
+    & ~filters.via_bot
+)
+async def vplay(_, message: Message):
+    await process_play(message, is_video=True)

@@ -12,20 +12,11 @@ from NovaMusic.Helpers.active import add_active_chat, remove_active_chat
 logger = logging.getLogger("QueueWatcher")
 
 
-# ============================================================
-# EVENT: Dipanggil otomatis oleh PyTgCalls saat stream selesai
-# Menggunakan @pytgcalls.on_update() dengan filter stream_end
-# ============================================================
 @pytgcalls.on_update(filters.stream_end())
 async def on_stream_end_handler(client, update: StreamEnded):
-    """
-    Fungsi ini akan otomatis dipanggil oleh PyTgCalls
-    ketika sebuah stream (lagu) selesai diputar.
-    """
     chat_id = update.chat_id
     logger.info(f"Stream ended in chat {chat_id}")
 
-    # 1. Cek apakah ada lagu dalam antrian
     queue = novadb.get(chat_id)
     if not queue:
         logger.info(f"No more tracks in queue for {chat_id}, leaving call.")
@@ -38,15 +29,15 @@ async def on_stream_end_handler(client, update: StreamEnded):
             logger.error(f"Failed to send queue empty message: {e}")
         return
 
-    # 2. Ambil lagu pertama dari antrian
     try:
-        track = queue.pop(0)  # Hapus dari antrian
+        track = queue.pop(0)
         title = track["title"]
         duration = track["duration"]
         file_path = track["file_path"]
         videoid = track["videoid"]
         req_by = track["req"]
         user_id = track["user_id"]
+        is_video = track.get("is_video", False)  # ambil flag
     except (KeyError, IndexError) as e:
         logger.error(f"Error parsing track from queue: {e}")
         await _clear_(chat_id)
@@ -54,7 +45,6 @@ async def on_stream_end_handler(client, update: StreamEnded):
         await pytgcalls.leave_call(chat_id)
         return
 
-    # 3. Putar lagu berikutnya
     stream = MediaStream(file_path)
     try:
         await pytgcalls.play(chat_id, stream)
@@ -72,7 +62,6 @@ async def on_stream_end_handler(client, update: StreamEnded):
         await pytgcalls.leave_call(chat_id)
         return
 
-    # 4. Kirim notifikasi (dengan thumbnail jika bisa)
     try:
         img = await gen_thumb(videoid, user_id)
         if img and img != "https://te.legra.ph/file/4c896584b592593c00aa8.jpg":
@@ -98,9 +87,6 @@ async def on_stream_end_handler(client, update: StreamEnded):
         logger.error(f"Error sending 'now playing' notification: {e}")
 
 
-# ============================================================
-# EVENT: Video chat berakhir
-# ============================================================
 @app.on_message(pyro_filters.video_chat_ended)
 async def video_chat_ended(_, message: Message):
     chat_id = message.chat.id
@@ -110,9 +96,6 @@ async def video_chat_ended(_, message: Message):
     await pytgcalls.leave_call(chat_id)
 
 
-# ============================================================
-# EVENT: Bot dikeluarkan dari grup
-# ============================================================
 @app.on_message(pyro_filters.left_chat_member)
 async def ub_leave(_, message: Message):
     if message.left_chat_member.id == BOT_ID:

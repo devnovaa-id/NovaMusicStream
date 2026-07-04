@@ -12,11 +12,8 @@ BASE_HEADERS = {
     'Sec-Fetch-Mode': 'navigate',
 }
 
-# Cek apakah ada file cookies.txt di direktori root
 COOKIE_FILE = None
 if os.path.exists("cookies.txt"):
-    COOKIE_FILE = "cookies.txt"
-elif os.path.exists("cookies.txt"):
     COOKIE_FILE = "cookies.txt"
 
 BASE_YDl_OPTS = {
@@ -36,7 +33,7 @@ BASE_YDl_OPTS = {
     ],
     'http_headers': BASE_HEADERS,
     'user_agent': BASE_HEADERS['User-Agent'],
-    'cookies_from_browser': ('chrome',),  # Aktifkan cookies dari browser (chrome)
+    'cookies_from_browser': ('chrome',),
     'extractor_args': {
         'youtube': {
             'player_client': ['android', 'web'],
@@ -46,7 +43,6 @@ BASE_YDl_OPTS = {
     }
 }
 
-# Jika ada file cookie, tambahkan ke opsi
 if COOKIE_FILE:
     BASE_YDl_OPTS['cookiefile'] = COOKIE_FILE
 
@@ -124,6 +120,44 @@ def audio_dl_progress(url: str, progress_callback=None):
 
 def audio_dl(url: str) -> str:
     return audio_dl_progress(url, None)
+
+
+def get_stream_url(url: str, is_video: bool = False) -> str:
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'format': 'bestvideo+bestaudio' if is_video else 'bestaudio',
+        'extract_flat': False,
+        'http_headers': BASE_HEADERS,
+        'user_agent': BASE_HEADERS['User-Agent'],
+        'cookies_from_browser': ('chrome',),
+    }
+    if COOKIE_FILE:
+        ydl_opts['cookiefile'] = COOKIE_FILE
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                return None
+
+            if is_video:
+                formats = info.get('formats', [])
+                formats = sorted(formats, key=lambda f: (f.get('width', 0) or 0) * (f.get('height', 0) or 0), reverse=True)
+                for f in formats:
+                    if f.get('vcodec', 'none') != 'none' and f.get('acodec', 'none') != 'none':
+                        return f.get('url')
+                for f in formats:
+                    if f.get('url'):
+                        return f.get('url')
+            else:
+                for f in info.get('formats', []):
+                    if f.get('acodec', 'none') != 'none' and f.get('vcodec', 'none') == 'none':
+                        return f.get('url')
+            return None
+    except Exception as e:
+        logger.error(f"Get stream URL error: {e}")
+        return None
 
 
 def search_youtube(query: str):
