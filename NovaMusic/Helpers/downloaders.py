@@ -1,0 +1,178 @@
+import os
+import logging
+import asyncio
+from yt_dlp import YoutubeDL
+
+logger = logging.getLogger("Downloader")
+
+
+def audio_dl_progress(url: str, progress_callback=None):
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'downloads/%(id)s.%(ext)s',
+        'geo_bypass': True,
+        'nocheckcertificate': True,
+        'quiet': True,
+        'no_warnings': True,
+        'prefer_ffmpeg': True,
+        'postprocessors': [
+            {
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '128',
+            }
+        ],
+    }
+
+    if progress_callback:
+        def hook(d):
+            if d['status'] == 'downloading':
+                total = d.get('total_bytes')
+                if total is None:
+                    total = d.get('total_bytes_estimate', 0)
+                if total is None:
+                    total = 0
+
+                downloaded = d.get('downloaded_bytes', 0)
+                if downloaded is None:
+                    downloaded = 0
+
+                speed = d.get('speed')
+                percent = (downloaded / total * 100) if total > 0 else 0
+                speed_str = "N/A"
+                if speed is not None and speed > 0:
+                    speed_str = f"{speed/1024/1024:.1f} MB/s"
+
+                if loop and loop.is_running():
+                    loop.call_soon_threadsafe(progress_callback, percent, speed_str)
+
+            elif d['status'] == 'finished':
+                if loop and loop.is_running():
+                    loop.call_soon_threadsafe(progress_callback, 100, "Selesai")
+
+        ydl_opts['progress_hooks'] = [hook]
+
+    ydl = YoutubeDL(ydl_opts)
+
+    try:
+        sin = ydl.extract_info(url, download=False)
+        if not sin:
+            raise Exception("Failed to extract video info")
+
+        video_id = sin.get('id')
+        if not video_id:
+            raise Exception("Video ID not found")
+
+        x_file = os.path.join("downloads", f"{video_id}.mp3")
+        if os.path.exists(x_file):
+            logger.info(f"File already exists: {x_file}")
+            if progress_callback and loop and loop.is_running():
+                loop.call_soon_threadsafe(progress_callback, 100, "File sudah ada")
+            return x_file
+
+        logger.info(f"Downloading: {sin.get('title', 'Unknown')}")
+        ydl.download([url])
+
+        if os.path.exists(x_file):
+            logger.info(f"Download complete: {x_file}")
+            return x_file
+        else:
+            raise Exception(f"File not found after download: {x_file}")
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        raise
+
+
+def audio_dl(url: str) -> str:
+    return audio_dl_progress(url, None)
+
+
+def search_youtube(query: str):
+    ydl_opts_search = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True,
+    }
+
+    try:
+        with YoutubeDL(ydl_opts_search) as ydl_search:
+            if query.startswith(('http://', 'https://')):
+                info = ydl_search.extract_info(query, download=False)
+                if info:
+                    return {
+                        'title': info.get('title', 'Unknown'),
+                        'duration': info.get('duration', 0),
+                        'id': info.get('id', ''),
+                        'url': query,
+                    }
+                return None
+
+            search_query = f"ytsearch1:{query}"
+            info = ydl_search.extract_info(search_query, download=False)
+
+            if info and 'entries' in info and info['entries']:
+                entry = info['entries'][0]
+                return {
+                    'title': entry.get('title', 'Unknown'),
+                    'duration': entry.get('duration', 0),
+                    'id': entry.get('id', ''),
+                    'url': f"https://youtube.com/watch?v={entry.get('id', '')}",
+                }
+            return None
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return None
+
+
+def get_playlist_videos(url: str, limit: int = 10):
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True,
+        'ignoreerrors': True,
+    }
+
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                return None
+
+            if 'entries' not in info:
+                return None
+
+            videos = []
+            count = 0
+            for entry in info['entries']:
+                if not entry:
+                    continue
+                if count >= limit:
+                    break
+                video_id = entry.get('id')
+                if not video_id:
+                    continue
+                videos.append({
+                    'title': entry.get('title', f'Video {count+1}'),
+                    'duration': entry.get('duration', 0),
+                    'id': video_id,
+                    'url': f"https://youtube.com/watch?v={video_id}",
+                })
+                count += 1
+
+            return videos
+    except Exception as e:
+        logger.error(f"Get playlist error: {e}")
+        return None
+
+
+def is_playlist_url(url: str) -> bool:
+    return 'playlist' in url.lower() or 'list=' in url
