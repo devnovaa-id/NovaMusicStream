@@ -36,7 +36,11 @@ async def executor(client, message):
     try:
         cmd = message.text.split(" ", maxsplit=1)[1]
     except IndexError:
-        return await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        return
     t1 = time()
     old_stderr = sys.stderr
     old_stdout = sys.stdout
@@ -82,7 +86,10 @@ async def executor(client, message):
             quote=False,
             reply_markup=keyboard,
         )
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         os.remove(filename)
     else:
         t2 = time()

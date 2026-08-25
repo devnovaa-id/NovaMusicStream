@@ -22,9 +22,14 @@ from NovaMusic.Modules import ALL_MODULES
 
 async def nova_startup():
     LOGGER.info("[•] Loading Modules...")
+    loaded = 0
     for module in ALL_MODULES:
-        importlib.import_module("NovaMusic.Modules." + module)
-    LOGGER.info(f"[•] Loaded {len(ALL_MODULES)} Modules.")
+        try:
+            importlib.import_module("NovaMusic.Modules." + module)
+            loaded += 1
+        except Exception as e:
+            LOGGER.error(f"Failed to load module '{module}': {e}")
+    LOGGER.info(f"[•] Loaded {loaded}/{len(ALL_MODULES)} Modules.")
 
     LOGGER.info("[•] Refreshing Directories...")
     if "downloads" not in os.listdir():

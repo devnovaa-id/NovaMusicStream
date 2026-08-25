@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import socket
 from yt_dlp import YoutubeDL
 
 logger = logging.getLogger("Downloader")
@@ -16,6 +17,55 @@ COOKIE_FILE = None
 if os.path.exists("cookies.txt"):
     COOKIE_FILE = "cookies.txt"
 
+
+def _ip_family_works(family: int) -> bool:
+    """Cek apakah bisa connect ke YouTube via family IP tertentu."""
+    try:
+        infos = socket.getaddrinfo("www.youtube.com", 443, family, socket.SOCK_STREAM)
+        if not infos:
+            return False
+        s = socket.socket(family, socket.SOCK_STREAM)
+        s.settimeout(2)
+        s.connect(infos[0][4])
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
+# Cache hasil deteksi agar hanya dijalankan sekali (lazy, saat pemakaian pertama).
+_SOURCE_ADDRESS = None
+_SOURCE_DETECTED = False
+
+
+def _get_source_address():
+    """Deteksi otomatis stack IP yang berfungsi.
+
+    Hybrid & kompatibel di semua environment:
+      - IPv4 jalan, IPv6 rusak  -> '0.0.0.0'  (paksa IPv4)
+      - IPv6 jalan, IPv4 rusak  -> '::'       (paksa IPv6)
+      - keduanya jalan / tak tentu -> None   (biarkan OS memilih)
+    """
+    global _SOURCE_ADDRESS, _SOURCE_DETECTED
+    if not _SOURCE_DETECTED:
+        _SOURCE_DETECTED = True
+        try:
+            v4 = _ip_family_works(socket.AF_INET)
+            v6 = _ip_family_works(socket.AF_INET6)
+            if v4 and not v6:
+                _SOURCE_ADDRESS = '0.0.0.0'
+                logger.info("Network: IPv4 OK, IPv6 broken -> forcing IPv4 (source_address=0.0.0.0)")
+            elif v6 and not v4:
+                _SOURCE_ADDRESS = '::'
+                logger.info("Network: IPv6 OK, IPv4 broken -> forcing IPv6 (source_address=::)")
+            else:
+                _SOURCE_ADDRESS = None
+                logger.info(f"Network: IPv4={v4} IPv6={v6} -> letting OS choose")
+        except Exception as e:
+            _SOURCE_ADDRESS = None
+            logger.warning(f"Source address detection failed: {e} (letting OS choose)")
+    return _SOURCE_ADDRESS
+
 BASE_YDl_OPTS = {
     'format': 'bestaudio/best',
     'outtmpl': 'downloads/%(id)s.%(ext)s',
@@ -24,6 +74,7 @@ BASE_YDl_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'prefer_ffmpeg': True,
+    'retries': 10,
     'postprocessors': [
         {
             'key': 'FFmpegExtractAudio',
@@ -58,6 +109,9 @@ def audio_dl_progress(url: str, progress_callback=None):
             asyncio.set_event_loop(loop)
 
     ydl_opts = BASE_YDl_OPTS.copy()
+    src = _get_source_address()
+    if src is not None:
+        ydl_opts['source_address'] = src
 
     if progress_callback:
         def hook(d):
@@ -106,6 +160,12 @@ def audio_dl_progress(url: str, progress_callback=None):
             return x_file
 
         logger.info(f"Downloading: {sin.get('title', 'Unknown')}")
+
+        # Untuk video multi-bahasa (dubbed): prioritaskan audio bahasa asli.
+        orig_lang = sin.get('language')
+        if orig_lang:
+            ydl.params['format'] = f"bestaudio[language={orig_lang}]/bestaudio/best"
+
         ydl.download([url])
 
         if os.path.exists(x_file):
@@ -122,15 +182,30 @@ def audio_dl(url: str) -> str:
     return audio_dl_progress(url, None)
 
 
-def get_stream_url(url: str, is_video: bool = False) -> str:
+def get_stream_url(url: str, is_video: bool = True):
+    """Ambil SATU URL streaming langsung dari YouTube.
+
+    Mengembalikan format muxed (audio+video menyatu dalam satu stream) supaya:
+      - tidak perlu memisah audio/video -> tidak ada desinkron (suara kecepatan).
+      - suara asli video tetap utuh (muxed progresif = audio original).
+    Fallback: format direct apa pun (hindari manifest HLS/DASH).
+    """
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'format': 'bestvideo+bestaudio' if is_video else 'bestaudio',
         'extract_flat': False,
         'http_headers': BASE_HEADERS,
         'user_agent': BASE_HEADERS['User-Agent'],
         'cookies_from_browser': ('chrome',),
+        'source_address': _get_source_address(),
+        'retries': 10,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'skip': ['hls', 'dash'],
+                'player_skip': ['configs', 'webpage'],
+            }
+        },
     }
     if COOKIE_FILE:
         ydl_opts['cookiefile'] = COOKIE_FILE
@@ -142,22 +217,38 @@ def get_stream_url(url: str, is_video: bool = False) -> str:
                 return None
 
             if is_video:
-                formats = info.get('formats', [])
-                formats = sorted(formats, key=lambda f: (f.get('width', 0) or 0) * (f.get('height', 0) or 0), reverse=True)
-                for f in formats:
-                    if f.get('vcodec', 'none') != 'none' and f.get('acodec', 'none') != 'none':
-                        return f.get('url')
-                for f in formats:
-                    if f.get('url'):
-                        return f.get('url')
+                formats = info.get('formats', []) or []
+
+                def _is_direct(f):
+                    u = f.get('url') or ''
+                    return bool(u) and 'manifest' not in u.lower()
+
+                # 1) Muxed: audio + video menyatu (ideal, 1 URL, tanpa desync).
+                muxed = sorted(
+                    [f for f in formats if _is_direct(f)
+                     and f.get('vcodec', 'none') != 'none'
+                     and f.get('acodec', 'none') != 'none'],
+                    key=lambda f: (f.get('width') or 0) * (f.get('height') or 0),
+                    reverse=True,
+                )
+                if muxed:
+                    return muxed[0].get('url')
+
+                # 2) Fallback: format direct resolusi tertinggi.
+                direct = sorted(
+                    [f for f in formats if _is_direct(f)],
+                    key=lambda f: (f.get('width') or 0) * (f.get('height') or 0),
+                    reverse=True,
+                )
+                return direct[0].get('url') if direct else None
             else:
                 for f in info.get('formats', []):
                     if f.get('acodec', 'none') != 'none' and f.get('vcodec', 'none') == 'none':
                         return f.get('url')
-            return None
+                return None
     except Exception as e:
         logger.error(f"Get stream URL error: {e}")
-        return None
+        raise
 
 
 def search_youtube(query: str):
@@ -168,6 +259,8 @@ def search_youtube(query: str):
         'http_headers': BASE_HEADERS,
         'user_agent': BASE_HEADERS['User-Agent'],
         'cookies_from_browser': ('chrome',),
+        'source_address': _get_source_address(),
+        'retries': 10,
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web'],
@@ -219,6 +312,8 @@ def get_playlist_videos(url: str, limit: int = 10):
         'http_headers': BASE_HEADERS,
         'user_agent': BASE_HEADERS['User-Agent'],
         'cookies_from_browser': ('chrome',),
+        'source_address': _get_source_address(),
+        'retries': 10,
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web'],

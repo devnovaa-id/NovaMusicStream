@@ -162,23 +162,23 @@ async def unban_ass(_, CallbackQuery):
     callback_data = CallbackQuery.data.strip()
     callback_request = callback_data.split(None, 1)[1]
     chat_id, user_id = callback_request.split("|")
-    umm = (await app.get_chat_member(int(chat_id), BOT_ID)).privileges
-    if umm.can_restrict_members:
-        try:
-            await app.unban_chat_member(int(chat_id), ASS_ID)
-        except:
-            return await CallbackQuery.answer(
-                "» ғᴀɪʟᴇᴅ ᴛᴏ ᴜɴʙᴀɴ ᴀssɪsᴛᴀɴᴛ.",
-                show_alert=True,
-            )
-        return await CallbackQuery.edit_message_text(
-            f"➻ {ASS_NAME} sᴜᴄᴄᴇssғᴜʟʟʏ ᴜɴʙᴀɴɴᴇᴅ ʙʏ {CallbackQuery.from_user.mention}.\n\nᴛʀʏ ᴘʟᴀʏɪɴɢ ɴᴏᴡ..."
-        )
-    else:
+    member = await app.get_chat_member(int(chat_id), BOT_ID)
+    priv = member.privileges if member else None
+    if not priv or not priv.can_restrict_members:
         return await CallbackQuery.answer(
-            "» ɪ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪssɪᴏɴs ᴛᴏ ᴜɴʙᴀɴ ᴜsᴇʀs ɪɴ ᴛʜɪs ᴄʜᴀᴛ.",
+            "» Bot bukan admin / tidak punya hak restrict di chat ini, jadi tidak bisa membuka banned assistant.",
             show_alert=True,
         )
+    try:
+        await app.unban_chat_member(int(chat_id), ASS_ID)
+    except Exception:
+        return await CallbackQuery.answer(
+            "» ғᴀɪʟᴇᴅ ᴛᴏ ᴜɴʙᴀɴ ᴀssɪsᴛᴀɴᴛ.",
+            show_alert=True,
+        )
+    return await CallbackQuery.edit_message_text(
+        f"➻ {ASS_NAME} sᴜᴄᴄᴇssғᴜʟʟʏ ᴜɴʙᴀɴɴᴇᴅ ʙʏ {CallbackQuery.from_user.mention}.\n\nᴛʀʏ ᴘʟᴀʏɪɴɢ ɴᴏᴡ..."
+    )
 
 
 @app.on_callback_query(filters.regex("nova_help"))

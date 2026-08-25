@@ -5,7 +5,7 @@ import yt_dlp
 
 from pyrogram import filters
 from pyrogram.enums import ChatMemberStatus
-from pyrogram.errors import UserNotParticipant
+from pyrogram.errors import ChatAdminRequired, UserNotParticipant
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from pytgcalls.exceptions import NoActiveGroupCall
 from pytgcalls.types import MediaStream
@@ -61,72 +61,68 @@ async def process_play(message: Message, is_video: bool = False):
                 reply_markup=unban_butt,
             )
     except UserNotParticipant:
+        # Assistant belum ada di grup — coba bawa masuk otomatis.
         try:
-            await fallen.edit_text(f"🔄 ᴍᴇɴɢᴜɴᴅᴀɴɢ {ASS_NAME} ᴋᴇ {message.chat.title}...")
-            join_success = False
-            if message.chat.username:
-                try:
-                    entity = await app2.get_entity(f"@{message.chat.username}")
-                    await app2(JoinChannelRequest(entity))
-                    join_success = True
-                except Exception as e:
-                    LOGGER.warning(f"JoinChannelRequest failed: {e}")
-            else:
-                try:
-                    invitelink = await app.export_chat_invite_link(message.chat.id)
-                    if invitelink.startswith("https://t.me/joinchat/"):
-                        hash_part = invitelink.replace("https://t.me/joinchat/", "")
-                        await app2(ImportChatInviteRequest(hash_part))
-                        join_success = True
-                    elif invitelink.startswith("https://t.me/+"):
-                        hash_part = invitelink.replace("https://t.me/+", "")
-                        await app2(ImportChatInviteRequest(hash_part))
-                        join_success = True
-                    else:
-                        await app2.join_chat(invitelink)
-                        join_success = True
-                except Exception as e:
-                    LOGGER.warning(f"ImportChatInviteRequest failed: {e}")
-            if join_success:
-                await asyncio.sleep(2)
-                return await fallen.edit_text(
-                    f"✅ {ASS_NAME} ᴛᴇʟᴀʜ ʙᴇʀʜᴀsɪʜ ᴅɪᴜɴᴅᴀɴɢ ᴋᴇ {message.chat.title}.\n\n"
-                    f"ꜱɪʟᴀᴋᴀɴ ᴋᴇᴛɪᴋ ᴜʟᴀɴɢ `/play` ᴜɴᴛᴜᴋ ᴍᴇᴍᴜᴛᴀʀ ʟᴀɢᴜ."
-                )
-        except FloodWaitError as e:
-            LOGGER.warning(f"Flood wait: {e}")
-            await asyncio.sleep(e.seconds)
-        except TelethonUserAlreadyParticipantError:
+            await fallen.edit_text(f"🔄 Mengundang {ASS_NAME} ke {message.chat.title}...")
+        except Exception:
             pass
-        except Exception as e:
-            LOGGER.error(f"Auto invite failed: {e}")
 
-        try:
-            if message.chat.username:
-                group_link = f"https://t.me/{message.chat.username}"
-            else:
-                group_link = await app.export_chat_invite_link(message.chat.id)
-        except:
-            group_link = f"https://t.me/{ASS_USERNAME}"
+        joined = False
 
+        # 1) Grup publik -> assistant join via username (tanpa perlu bot admin).
+        if message.chat.username:
+            try:
+                entity = await app2.get_entity(f"@{message.chat.username}")
+                await app2(JoinChannelRequest(entity))
+                joined = True
+            except TelethonUserAlreadyParticipantError:
+                joined = True
+            except Exception as e:
+                LOGGER.warning(f"Join via username failed: {e}")
+
+        # 2) Grup privat -> bot ekspor invite link, assistant join (perlu bot admin).
+        if not joined:
+            try:
+                invitelink = await app.export_chat_invite_link(message.chat.id)
+                hash_part = None
+                if invitelink.startswith("https://t.me/+"):
+                    hash_part = invitelink.replace("https://t.me/+", "")
+                elif invitelink.startswith("https://t.me/joinchat/"):
+                    hash_part = invitelink.replace("https://t.me/joinchat/", "")
+                if hash_part:
+                    await app2(ImportChatInviteRequest(hash_part))
+                else:
+                    await app2.join_chat(invitelink)
+                joined = True
+            except ChatAdminRequired:
+                # Bot bukan admin -> tidak bisa ekspor link. Lanjut ke fallback manual.
+                LOGGER.info(f"Bot not admin in {message.chat.id}; cannot auto-invite assistant.")
+            except FloodWaitError as e:
+                LOGGER.warning(f"Flood wait: {e}")
+                await asyncio.sleep(e.seconds)
+            except TelethonUserAlreadyParticipantError:
+                joined = True
+            except Exception as e:
+                LOGGER.warning(f"Auto invite via link failed: {e}")
+
+        # 3a) Berhasil bergabung.
+        if joined:
+            await asyncio.sleep(2)
+            return await fallen.edit_text(
+                f"✅ {ASS_NAME} telah berhasil diundang ke {message.chat.title}.\n\n"
+                f"Silakan ketik ulang `/play` untuk memutar lagu."
+            )
+
+        # 3b) Bot bukan admin -> minta user tambahkan assistant manual.
+        ass_link = f"https://t.me/{ASS_USERNAME}" if ASS_USERNAME else f"tg://user?id={ASS_ID}"
         return await fallen.edit_text(
-            f"» ᴀssɪsᴛᴀɴᴛ @{ASS_USERNAME} ʙᴇʟᴜᴍ ʙᴇʀɢᴀʙᴜɴɢ ᴅɪ ɢʀᴜᴘ ɪɴɪ.\n\n"
-            f"ᴛᴏʟᴏɴɢ ᴜɴᴅᴀɴɢ ᴀssɪsᴛᴀɴᴛ ᴛᴇʀʟᴇʙɪʜ ᴅᴀʜᴜʟᴜ ᴅᴇɴɢᴀɴ ᴄᴀʀᴀ:\n"
-            f"1️⃣ ᴋʟɪᴋ ᴛᴏᴍʙᴇʟ ᴅɪ ʙᴀᴡᴀʜ\n"
-            f"2️⃣ ᴘɪʟɪʜ ᴜɴᴛᴜᴋ ᴍᴇɴɢᴜɴᴅᴀɴɢ @{ASS_USERNAME} ᴋᴇ ɢʀᴜᴘ",
+            f"» **Bot bukan admin di {message.chat.title}**, jadi tidak bisa mengundang {ASS_NAME} secara otomatis.\n\n"
+            f"📋 **Cara:**\n"
+            f"1️⃣ Klik tombol di bawah untuk membuka profil {ASS_NAME}\n"
+            f"2️⃣ Pilih **Add to Group** -> pilih grup ini\n"
+            f"3️⃣ Ketik ulang `/play` untuk mulai memutar musik",
             reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        text=f"✚ ᴜɴᴅᴀɴɢ {ASS_NAME}",
-                        url=f"https://t.me/{ASS_USERNAME}?startgroup=join"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="🔗 ʟɪɴᴋ ᴜɴᴅᴀɴɢᴀɴ ɢʀᴜᴘ",
-                        url=group_link
-                    )
-                ]
+                [InlineKeyboardButton(text=f"➕ Tambahkan {ASS_NAME}", url=ass_link)]
             ])
         )
 
@@ -159,7 +155,7 @@ async def process_play(message: Message, is_video: bool = False):
             )
         file_name = get_file_name(audio)
         title = file_name
-        duration = round(audio.duration / 60)
+        duration_min = round(audio.duration / 60)
         file_path = (
             await message.reply_to_message.download(file_name)
             if not os.path.isfile(os.path.join("downloads", file_name))
@@ -196,7 +192,11 @@ async def process_play(message: Message, is_video: bool = False):
                     try:
                         if is_video:
                             # Video: stream langsung tanpa download
-                            stream_url = get_stream_url(video_url, is_video=True)
+                            try:
+                                stream_url = get_stream_url(video_url, is_video=True)
+                            except Exception as e:
+                                LOGGER.warning(f"Playlist get_stream_url failed for {video_url}: {e}")
+                                stream_url = None
                             file_path = stream_url if stream_url else video_url
                         else:
                             # Audio: download dulu
