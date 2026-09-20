@@ -14,6 +14,11 @@ def admin_check(func: Callable) -> Callable:
         if not await is_active_chat(message.chat.id):
             return await message.reply_text("ʙᴏᴛ ɪsɴ'ᴛ sᴛʀᴇᴀᴍɪɴɢ ᴏɴ ᴠɪᴅᴇᴏᴄʜᴀᴛ.")
 
+        # Broadcast channel: from_user is None (dikirim atas nama channel).
+        # Di channel hanya admin yang bisa menulis, jadi lanjutkan tanpa cek.
+        if message.from_user is None:
+            return await func(_, message)
+
         if message.from_user.id in SUDOERS:
             return await func(_, message)
 

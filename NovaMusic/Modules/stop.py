@@ -3,10 +3,10 @@ from pyrogram import filters
 from pyrogram.types import Message
 
 from NovaMusic import LOGGER, app, pytgcalls  # ✅ LOGGER ditambahkan
-from NovaMusic.Helpers import _clear_, admin_check, close_key
+from NovaMusic.Helpers import _clear_, admin_check, close_key, get_mention
 
 
-@app.on_message(filters.command(["stop", "end"]) & filters.group)
+@app.on_message(filters.command(["stop", "end"]) & (filters.group | filters.channel))
 @admin_check
 async def stop_str(_, message: Message):
     try:
@@ -21,6 +21,6 @@ async def stop_str(_, message: Message):
         pass
 
     return await message.reply_text(
-        text=f"➻ **sᴛʀᴇᴀᴍ ᴇɴᴅᴇᴅ/sᴛᴏᴩᴩᴇᴅ** ❄\n│ \n└ʙʏ : {message.from_user.mention} 🥀",
+        text=f"➻ **sᴛʀᴇᴀᴍ ᴇɴᴅᴇᴅ/sᴛᴏᴩᴩᴇᴅ** ❄\n│ \n└ʙʏ : {get_mention(message)} 🥀",
         reply_markup=close_key,
     )

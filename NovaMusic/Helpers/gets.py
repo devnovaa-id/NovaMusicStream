@@ -34,3 +34,17 @@ def get_url(message_1: Message) -> Union[str, None]:
 
 def get_file_name(audio: Union[Audio, Voice]):
     return f'{audio.file_unique_id}.{audio.file_name.split(".")[-1] if not isinstance(audio, Voice) else "ogg"}'
+
+
+def get_mention(message: Message) -> str:
+    """Resolve a display mention/name for the requester.
+
+    Di broadcast channel, `message.from_user` bernilai None karena pesan
+    dikirim atas nama channel — fallback ke `sender_chat` / `chat.title`.
+    """
+    if message.from_user:
+        return message.from_user.mention
+    sender = message.sender_chat or message.chat
+    if sender and getattr(sender, "title", None):
+        return sender.title
+    return "Channel"

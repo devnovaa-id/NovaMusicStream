@@ -4,11 +4,11 @@ from pyrogram.types import Message
 from pytgcalls.types import MediaStream
 
 from NovaMusic import BOT_USERNAME, LOGGER, app, novadb, pytgcalls  # ✅ LOGGER ditambahkan
-from NovaMusic.Helpers import _clear_, admin_check, buttons, close_key, gen_thumb
+from NovaMusic.Helpers import _clear_, admin_check, buttons, close_key, gen_thumb, get_mention
 from NovaMusic.Helpers.active import add_active_chat, remove_active_chat
 
 
-@app.on_message(filters.command(["skip", "next"]) & filters.group)
+@app.on_message(filters.command(["skip", "next"]) & (filters.group | filters.channel))
 @admin_check
 async def skip_str(_, message: Message):
     try:
@@ -22,7 +22,7 @@ async def skip_str(_, message: Message):
             await remove_active_chat(message.chat.id)
             await pytgcalls.leave_call(message.chat.id)
             await message.reply_text(
-                text=f"➻ sᴛʀᴇᴀᴍ sᴋɪᴩᴩᴇᴅ 🥺\n│ \n└ʙʏ : {message.from_user.mention} 🥀\n\n**» ɴᴏ ᴍᴏʀᴇ ǫᴜᴇᴜᴇᴅ ᴛʀᴀᴄᴋs ɪɴ** {message.chat.title}, **ʟᴇᴀᴠɪɴɢ ᴠɪᴅᴇᴏᴄʜᴀᴛ.**",
+                text=f"➻ sᴛʀᴇᴀᴍ sᴋɪᴩᴩᴇᴅ 🥺\n│ \n└ʙʏ : {get_mention(message)} 🥀\n\n**» ɴᴏ ᴍᴏʀᴇ ǫᴜᴇᴜᴇᴅ ᴛʀᴀᴄᴋs ɪɴ** {message.chat.title}, **ʟᴇᴀᴠɪɴɢ ᴠɪᴅᴇᴏᴄʜᴀᴛ.**",
                 reply_markup=close_key,
             )
         except:
@@ -47,7 +47,7 @@ async def skip_str(_, message: Message):
             return await pytgcalls.leave_call(message.chat.id)
 
         await message.reply_text(
-            text=f"➻ sᴛʀᴇᴀᴍ sᴋɪᴩᴩᴇᴅ 🥺\n│ \n└ʙʏ : {message.from_user.mention} 🥀",
+            text=f"➻ sᴛʀᴇᴀᴍ sᴋɪᴩᴩᴇᴅ 🥺\n│ \n└ʙʏ : {get_mention(message)} 🥀",
             reply_markup=close_key,
         )
         img = await gen_thumb(videoid, user_id)

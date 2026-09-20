@@ -126,7 +126,13 @@ async def process_play(message: Message, is_video: bool = False):
             ])
         )
 
-    ruser = message.from_user.first_name
+    if message.from_user:
+        ruser = message.from_user.first_name
+        user_id = message.from_user.id
+    else:
+        sender = message.sender_chat or message.chat
+        user_id = sender.id if sender else message.chat.id
+        ruser = (getattr(sender, "title", None) or message.chat.title or "Channel") if sender else (message.chat.title or "Channel")
     audio = (
         (message.reply_to_message.audio or message.reply_to_message.voice)
         if message.reply_to_message else None
@@ -207,7 +213,7 @@ async def process_play(message: Message, is_video: bool = False):
                         if chat_active and not first_video:
                             await put(
                                 message.chat.id, title, duration_min, videoid, file_path, ruser,
-                                message.from_user.id, is_video
+                                user_id, is_video
                             )
                             added_count += 1
                         else:
@@ -219,7 +225,7 @@ async def process_play(message: Message, is_video: bool = False):
                                 chat_active = True
                                 first_video = False
 
-                                imgt = await gen_thumb(videoid, message.from_user.id)
+                                imgt = await gen_thumb(videoid, user_id)
                                 await fallen.delete()
                                 await message.reply_photo(
                                     photo=imgt,
@@ -359,10 +365,10 @@ async def process_play(message: Message, is_video: bool = False):
         await add_active_chat(message.chat.id)
         await put(
             message.chat.id, title, duration_min, videoid, file_path, ruser,
-            message.from_user.id, is_video
+            user_id, is_video
         )
         position = len(novadb.get(message.chat.id, []))
-        qimg = await gen_qthumb(videoid, message.from_user.id)
+        qimg = await gen_qthumb(videoid, user_id)
         await fallen.delete()
         await message.reply_photo(
             photo=qimg,
@@ -389,7 +395,7 @@ async def process_play(message: Message, is_video: bool = False):
         await stream_on(message.chat.id)
         await add_active_chat(message.chat.id)
 
-        imgt = await gen_thumb(videoid, message.from_user.id)
+        imgt = await gen_thumb(videoid, user_id)
         await fallen.delete()
         await message.reply_photo(
             photo=imgt,
@@ -425,4 +431,26 @@ async def play(_, message: Message):
     & ~filters.via_bot
 )
 async def vplay(_, message: Message):
+    await process_play(message, is_video=True)
+
+
+# Handler untuk /cplay (audio) di broadcast channel
+@app.on_message(
+    filters.command(["cplay", "cp"])
+    & filters.channel
+    & ~filters.forwarded
+    & ~filters.via_bot
+)
+async def cplay(_, message: Message):
+    await process_play(message, is_video=False)
+
+
+# Handler untuk /cvplay (video) di broadcast channel
+@app.on_message(
+    filters.command(["cvplay", "cvp"])
+    & filters.channel
+    & ~filters.forwarded
+    & ~filters.via_bot
+)
+async def cvplay(_, message: Message):
     await process_play(message, is_video=True)

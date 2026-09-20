@@ -35,7 +35,7 @@ pm_buttons = [
     ],
     [
         InlineKeyboardButton(
-            text="☁️ sᴏᴜʀᴄᴇ ☁️", url="https://github.com/devnovaa-id/NovaMusic"
+            text="☁️ sᴏᴜʀᴄᴇ ☁️", url="https://github.com/devnovaa-id/NovaMusicStream.git"
         ),
         InlineKeyboardButton(text="🥀 ᴅᴇᴠᴇʟᴏᴘᴇʀ 🥀", user_id=config.OWNER_ID),
     ],
@@ -55,7 +55,7 @@ gp_buttons = [
     ],
     [
         InlineKeyboardButton(
-            text="☁️ sᴏᴜʀᴄᴇ ☁️", url="https://github.com/devnovaa-id/NovaMusic"
+            text="☁️ sᴏᴜʀᴄᴇ ☁️", url="https://github.com/devnovaa-id/NovaMusicStream.git"
         ),
         InlineKeyboardButton(text="🥀 ᴅᴇᴠᴇʟᴏᴩᴇʀ 🥀", user_id=config.OWNER_ID),
     ],
