@@ -1,157 +1,200 @@
 # Changelog
 
-Semua perubahan penting pada **NovaMusicStream** dicatat di file ini.
+Semua perubahan penting pada **NovaMusicStream** dicatat di sini berdasarkan riwayat commit Git dari awal repository sampai versi terbaru.
 
-Format changelog ini mengikuti pendekatan kronologis dan membedakan antara perubahan yang masih aktif di project dengan eksperimen yang akhirnya di-reset.
+> Catatan: tanggal mengikuti metadata commit di repository.
 
 ---
 
-## [Unreleased] — 2026-10-12
+## [Unreleased]
+
+Belum ada perubahan setelah commit dokumentasi terakhir.
+
+---
+
+## [0.6.0] — 2026-10-13
 
 ### Dokumentasi
 
-- Menambahkan `README.md` baru dengan dokumentasi yang lebih modern, lengkap, dan terstruktur.
-- Menambahkan dokumentasi mengenai:
-  - fitur utama NovaMusicStream,
-  - arsitektur project,
-  - instalasi lokal,
-  - konfigurasi environment variable,
-  - command user, sudo, dan owner,
-  - pembuatan Telethon session,
-  - deployment PM2,
-  - deployment Docker,
-  - troubleshooting,
-  - development workflow,
-  - keamanan credentials,
-  - license dan contribution guide.
+- Menambahkan `README.md` baru yang modern dan komprehensif.
+- Mendokumentasikan fitur, arsitektur, instalasi, konfigurasi, command, deployment, troubleshooting, development, keamanan, dan kontribusi.
+- Menambahkan `CHANGELOG.md`.
 
-### Repository cleanup
+### Repository
 
-- Menghapus file eksperimen AI Gen:
-  - `NovaMusic/Modules/aigen.py`
-- Menghapus file eksperimen IPTV:
-  - `NovaMusic/Helpers/iptv.py`
-  - `NovaMusic/Modules/iptv.py`
-- Menghapus seluruh integrasi UNO beserta engine dan file pendukungnya dari `NovaMusic/Uno/`.
-- Mengembalikan file help, inline keyboard, callback, dan startup ke versi repository sebelum eksperimen UNO:
-  - `NovaMusic/Helpers/dossier.py`
-  - `NovaMusic/Helpers/inline.py`
-  - `NovaMusic/Modules/callback.py`
-  - `NovaMusic/__main__.py`
-- Working tree dikembalikan bersih setelah proses reset dan cleanup.
+- Repository berada dalam kondisi bersih setelah eksperimen sementara AI Gen, IPTV, dan UNO dihapus atau di-reset.
+- Fitur aktif tetap berfokus pada voice-chat music player NovaMusicStream.
+
+**Commit:** `25b1188 docs: add comprehensive README and changelog`
 
 ---
 
-## [Experimental] UNO Integration — Reverted
+## [0.5.0] — 2026-09-20
 
-> Bagian ini dicatat sebagai riwayat perubahan, bukan fitur aktif pada versi saat ini.
+### Broadcast channel streaming
 
-### Penambahan awal
+- Menambahkan dukungan streaming audio ke broadcast channel melalui `/cplay`.
+- Menambahkan dukungan streaming video ke broadcast channel melalui `/cvplay`.
+- Menambahkan penanganan playback yang membedakan group voice chat dan broadcast channel.
+- Menyesuaikan kontrol playback seperti pause, resume, skip, stop, dan ping agar channel-aware.
+- Menambahkan helper untuk mengambil informasi channel.
+- Memperbarui daftar bantuan dengan command channel streaming.
+- Memperbaiki source link pada tombol source.
+- Menambahkan dukungan admin/channel yang dibutuhkan untuk streaming ke channel.
 
-- Mengintegrasikan engine UNO dari repository:
-  - `https://github.com/jh0ker/mau_mau_bot.git`
-- Menambahkan engine game ke dalam `NovaMusic/Uno/`.
-- Membuat adapter Pyrogram agar UNO menggunakan client NovaMusic yang sudah berjalan.
-- Menambahkan command permainan UNO seperti:
-  - `/uno`
-  - `/new`
-  - `/join`
+### Command baru
+
+- `/cplay` — memutar audio di broadcast channel.
+- `/cvplay` — memutar video di broadcast channel.
+
+**Commit:** `24dd3a9 feat: add /cplay & /cvplay channel streaming, channel-aware controls, fix source link`
+
+---
+
+## [0.4.0] — 2026-08-25
+
+### Administrasi dan akses
+
+- Menambahkan mode hybrid untuk penggunaan bot dengan atau tanpa konfigurasi admin tertentu.
+- Memperbarui alur validasi admin dan hak akses command.
+- Memperbaiki dukungan evaluasi dan command administratif.
+
+### Network dan performa
+
+- Menambahkan deteksi network otomatis.
+- Menyesuaikan konfigurasi dan proses download berdasarkan kondisi network.
+- Meningkatkan ketahanan proses media extraction dan download.
+
+### System statistics
+
+- Memperkaya output `/sysstats`.
+- Menambahkan informasi sistem dan network yang lebih lengkap.
+- Memperbarui tampilan status dan statistik server.
+
+### Konfigurasi dan deployment
+
+- Memperbarui `.env.example`.
+- Memperbarui `.gitignore`.
+- Menyesuaikan `Dockerfile` untuk kebutuhan runtime terbaru.
+- Menyesuaikan startup dan konfigurasi utama.
+
+**Commit:** `2163879 feat: hybrid admin/non-admin mode, network auto-detect, and richer /sysstats`
+
+---
+
+## [0.3.0] — 2026-07-04
+
+### Video streaming
+
+- Menambahkan dukungan video streaming melalui `/vplay`.
+- Memperbarui pipeline download agar dapat menangani audio dan video.
+- Menyesuaikan queue untuk media video.
+- Memperbarui watcher agar lebih sesuai dengan lifecycle video stream.
+- Meningkatkan reliability download dan playback.
+
+### Command baru
+
+- `/vplay` — memutar video di video chat.
+
+**Commit:** `f77babd feat: add video streaming support with /vplay and improve download reliability`
+
+---
+
+## [0.2.0] — 2026-07-04
+
+### Perbaikan download
+
+- Memperbaiki masalah HTTP 403 saat mengambil media.
+- Memperbarui downloader untuk meningkatkan kompatibilitas terhadap sumber media.
+- Menambahkan penanganan error download yang lebih aman.
+
+**Commit:** `e606bb0 fix 403`
+
+---
+
+## [0.1.0] — 2026-07-04
+
+### Initial repository
+
+- Membuat baseline awal NovaMusicStream.
+- Menambahkan bot client berbasis Pyrogram.
+- Menambahkan assistant client berbasis Telethon.
+- Menambahkan integrasi Py-TgCalls untuk voice chat.
+- Menambahkan struktur modular di `NovaMusic/Helpers` dan `NovaMusic/Modules`.
+- Menambahkan module dasar playback:
+  - `/play`
+  - `/pause`
+  - `/resume`
+  - `/skip`
+  - `/end`
+- Menambahkan pencarian dan download lagu:
+  - `/search`
+  - `/song`
+- Menambahkan command dan utilitas administrasi:
   - `/start`
-  - `/leave`
-  - `/kill`
-- Menambahkan inline mode untuk melihat kartu dan memilih kartu permainan.
-- Menambahkan command UNO ke help dan menu command Telegram.
+  - `/ping`
+  - `/activevc`
+  - `/sudolist`
+  - `/sysstats`
+  - `/speedtest`
+  - `/eval`
+  - `/broadcast`
+  - `/leaveall`
+- Menambahkan queue playback, thumbnail generator, formatter, downloader, error handler, dan helper Telegram.
+- Menambahkan konfigurasi environment melalui `.env.example` dan `config.py`.
+- Menambahkan `requirements.txt`.
+- Menambahkan `Dockerfile`, `Procfile`, `app.json`, dan script startup `nova`.
+- Menambahkan generator session assistant melalui `gen_telethon.py`.
+- Menambahkan `LICENSE` dan konfigurasi repository dasar.
 
-### Perbaikan selama eksperimen
-
-- Memperbaiki penggunaan `set.add()` pada daftar owner game.
-- Memisahkan state setiap game agar tidak bocor antargrup.
-- Memperbaiki masalah async pada `send_message()`.
-- Mengubah command mulai UNO menjadi `/unostart` agar tidak bentrok dengan `/start` NovaMusic.
-- Membatasi aktivasi UNO agar hanya aktif setelah `/uno` dijalankan di grup.
-- Memperbaiki custom filter Pyrogram yang membutuhkan tiga parameter.
-- Memperbaiki pembuatan `InlineQueryResultArticle` dengan `InputTextMessageContent` yang benar.
-- Memperbaiki error Telegram `MEDIA_CAPTION_TOO_LONG` saat membuka halaman help dari pesan foto.
-- Memperbaiki logika draw dan pergantian giliran.
-- Menambahkan validasi kartu yang dimainkan melalui inline result.
-- Menambahkan pembatasan agar hanya pembuat game atau admin yang dapat memulai game.
-- Memperbaiki cleanup game pada `GameManager`.
-
-### Reset
-
-- Integrasi UNO akhirnya dihapus sesuai permintaan agar project kembali ke versi repository sebelum integrasi tersebut.
-- Tidak ada command atau modul UNO yang aktif pada versi saat ini.
+**Commit:** `2d2adb7 clean repo`
 
 ---
 
-## [Experimental] AI Gen dan IPTV — Reverted
+## Riwayat eksperimen yang di-reset
 
-> Eksperimen ini juga sudah dihapus dari project saat ini.
+Bagian berikut merupakan riwayat pekerjaan selama sesi pengembangan, tetapi tidak menjadi fitur aktif pada commit terbaru.
 
-- Pernah menambahkan modul AI Gen:
-  - `NovaMusic/Modules/aigen.py`
-- Pernah menambahkan modul IPTV:
-  - `NovaMusic/Helpers/iptv.py`
-  - `NovaMusic/Modules/iptv.py`
-- Seluruh file tersebut kemudian dihapus untuk mengembalikan repository ke kondisi bersih.
+### UNO — dihapus
 
----
+- Pernah diintegrasikan dari `jh0ker/mau_mau_bot`.
+- Pernah dibuat adapter Pyrogram dan engine game di `NovaMusic/Uno/`.
+- Pernah ditambahkan command `/uno`, `/new`, `/join`, `/unostart`, `/leave`, dan `/kill`.
+- Pernah ditambahkan inline card selection dan aktivasi per grup.
+- Integrasi kemudian dihapus dan file terkait dikembalikan ke versi GitHub sebelum eksperimen.
 
-## [Current Base] NovaMusicStream
+### AI Gen dan IPTV — dihapus
 
-Perubahan utama yang menjadi fondasi project saat ini mencakup:
-
-- Bot Telegram voice-chat berbasis Pyrogram.
-- Assistant account berbasis Telethon.
-- Streaming audio dan video menggunakan Py-TgCalls.
-- Dukungan command `/play` dan `/vplay`.
-- Dukungan streaming ke broadcast channel melalui `/cplay` dan `/cvplay`.
-- Queue playback dengan command pause, resume, skip, dan end.
-- Pencarian YouTube dan download lagu.
-- Thumbnail, cache, dan download management.
-- Sistem owner dan sudo user.
-- Struktur module otomatis melalui `NovaMusic/Modules/__init__.py`.
-- Dukungan deployment melalui Docker, Procfile, dan PM2.
-- Perbaikan source link pada tombol source.
-
-### Command utama yang tersedia
-
-- `/play`
-- `/vplay`
-- `/cplay`
-- `/cvplay`
-- `/pause`
-- `/resume`
-- `/skip`
-- `/end`
-- `/ping`
-- `/sudolist`
-- `/song`
-- `/search`
+- Pernah dibuat modul eksperimen AI Gen.
+- Pernah dibuat helper dan module IPTV.
+- Seluruh file eksperimen tersebut kemudian dihapus agar repository kembali bersih.
 
 ---
 
-## [0.1.0] — Repository baseline
+## Ringkasan fitur versi terbaru
 
-- Baseline project NovaMusicStream digunakan sebagai dasar pengembangan.
-- Struktur awal bot, helper, module, konfigurasi, Dockerfile, Procfile, dan requirements tersedia.
-- Commit baseline terakhir yang tercatat pada repository:
-
-```text
-24dd3a9 feat: add /cplay & /cvplay channel streaming, channel-aware controls, fix source link
-```
-
----
+- 🎵 Audio streaming di Telegram voice chat.
+- 🎬 Video streaming melalui `/vplay`.
+- 📡 Audio channel streaming melalui `/cplay`.
+- 📺 Video channel streaming melalui `/cvplay`.
+- 🔎 YouTube search dan media download.
+- ⏯️ Pause, resume, skip, dan queue management.
+- 🛡️ Owner dan sudo access control.
+- 📊 System dan network statistics.
+- 🤖 Pyrogram bot + Telethon assistant.
+- ⚡ Py-TgCalls voice/video chat integration.
+- 🧩 Modular command loading.
+- 🐳 Docker, Procfile, dan PM2 deployment support.
 
 ## Catatan keamanan
 
-Jangan memasukkan data berikut ke dalam commit atau changelog:
+Jangan pernah commit data sensitif berikut:
 
 - `BOT_TOKEN`
-- `API_HASH`
+- `API_ID` atau `API_HASH` private
 - `SESSION`
-- password atau nomor telepon assistant account
-- `cookies.txt` yang berisi credentials
-- data konfigurasi private
+- nomor telepon assistant account
+- credentials pada `cookies.txt`
+- konfigurasi private atau token deployment
 
-Gunakan `.env` lokal dan pastikan file rahasia tetap masuk `.gitignore`.
+Gunakan `.env` lokal dan pastikan file rahasia tetap diabaikan oleh Git.
