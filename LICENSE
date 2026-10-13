@@ -1,7 +1,7 @@
 MIT License
 
 Copyright (c) 2023 AnonymousX1025
-Copyright (c) 2026 thiskey (DevNova-ID / DreamToRealityCreative)
+Copyright (c) 2026 DevNova-ID / DreamToRealityCreative
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,28 +23,45 @@ SOFTWARE.
 
 ---
 
-CREDITS:
+PROJECT ATTRIBUTION
 
-Original Creator:
-  - AnonymousX1025 (Original FallenMusic repository)
+NovaMusicStream is a derivative and maintained version of the original
+FallenMusic project created by AnonymousX1025. The project has been adapted,
+stabilized, and extended for the NovaMusicStream repository by DevNova-ID /
+DreamToRealityCreative.
 
-Stabilization & Major Fixes:
-  - thiskey (DevNova-ID / DreamToRealityCreative)
-    * Pyrogram/PyTgCalls compatibility fixes
-    * Queue system rewrite
-    * Thumbnail generation fixes
-    * Auto-invite system
-    * Error handling improvements
-    * Full testing and stabilization
+Original project:
+  FallenMusic — AnonymousX1025
 
-Contributions:
-  - Telegram API support via Pyrogram & Telethon
-  - Audio processing via yt-dlp
-  - Voice chat support via PyTgCalls
+Current project:
+  NovaMusicStream — DevNova-ID / DreamToRealityCreative
+  https://github.com/devnovaa-id/NovaMusicStream
 
----
+MAJOR MAINTENANCE AND IMPROVEMENTS
 
-⚠️ DISCLAIMER:
-This bot is for educational purposes only. Users are responsible for
-complying with YouTube's Terms of Service and Telegram's Terms of Service.
-The developers are not responsible for any misuse of this bot.
+  - Pyrogram, Telethon, and Py-TgCalls integration
+  - Audio and video voice-chat streaming
+  - Broadcast-channel playback support
+  - Queue and playback-control improvements
+  - Thumbnail and media-download improvements
+  - Auto-invite and assistant-account handling
+  - Error handling, compatibility, and runtime stabilization
+  - Docker, Procfile, and deployment documentation
+
+THIRD-PARTY SOFTWARE
+
+NovaMusicStream uses third-party libraries and services. Each dependency
+remains subject to its own license and terms. Important project dependencies
+include Pyrogram, Telethon, Py-TgCalls, yt-dlp, FFmpeg, and YouTube-related
+services. Their licenses are not replaced by this file.
+
+DISCLAIMER
+
+This software is provided for educational and personal use. Users are solely
+responsible for complying with Telegram's Terms of Service, YouTube's Terms of
+Service, applicable copyright laws, and all other relevant regulations.
+
+The maintainers are not responsible for misuse of this software, downloaded
+content, media streams, credentials, or third-party services. Do not commit
+bot tokens, API hashes, session strings, cookies, or other private credentials
+to the repository.
